@@ -1,2 +1,108 @@
 # PriceLab
-Simulateur d’intelligence pricing
+
+PriceLab is a local pricing intelligence simulator for a product catalogue. It turns sales, prices, stock, promotions, and context history into guarded product-level price recommendations with estimated impact on volume, revenue, margin, risk, and confidence.
+
+The goal is portfolio-grade data science, not a descriptive dashboard. The app includes schema validation, data quality scanning, feature engineering, temporal backtesting, interpretable elasticity, a challenger ML model, reliability scoring, scenario simulation, optimization, explainability, and product report export.
+
+## Links
+
+- Custom-domain redirect: `https://pricelab.YOUR-DOMAIN.com`
+- Streamlit app: `https://pricelab.streamlit.app`
+- Deployment guide: [DEPLOYMENT.md](DEPLOYMENT.md)
+
+Replace the custom-domain placeholder after Cloudflare Pages is configured. The custom-domain URL redirects to the Streamlit app; the GitHub repository URL itself remains `https://github.com/Brainfkt/PriceLab`.
+
+## MVP Features
+
+- Streamlit app with generated demo data when no CSV is uploaded.
+- CSV import with column mapping and schema validation.
+- Data quality scanner for missing values, invalid prices, stockouts, promo contamination, and weak price variation.
+- Catalogue overview, product deep dive, price performance matrix, best moments, and promotion analysis.
+- Log-log Ridge elasticity model per product.
+- Random Forest challenger demand model with temporal backtesting.
+- Reliability score that blocks or degrades unsafe recommendations.
+- Scenario simulator and optimal price finder for volume, revenue, margin, or prudence.
+- Catalogue opportunity scanner.
+- Markdown and HTML product report export.
+
+## Install
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -U pip
+python -m pip install -e ".[dev]"
+```
+
+## Run
+
+```bash
+streamlit run app.py
+```
+
+The app uses a generated synthetic dataset by default. Upload a CSV in the sidebar to use your own data.
+
+## Validate
+
+```bash
+pytest -q
+python -m pricelab.cli generate-demo --out data/demo/pricelab_demo.csv
+python -m pricelab.cli validate data/demo/pricelab_demo.csv
+```
+
+## Deploy
+
+PriceLab is a Python/Streamlit app, so the interactive application should be deployed on Streamlit Community Cloud or another Python host. GitHub Pages can publish the static portfolio page in `docs/` with a personal domain and link to the Streamlit app.
+
+Minimum Streamlit Cloud settings:
+
+- Repository: `Brainfkt/PriceLab`
+- Branch: `main`
+- Main file path: `app.py`
+- Dependencies: `requirements.txt`
+
+For the custom-domain redirect, configure GitHub Pages to publish from `docs/`, then update `docs/config.js`.
+
+## Expected CSV Schema
+
+Required columns:
+
+- `date`
+- `product_id`
+- `product_name`
+- `category`
+- `units_sold`
+- `price`
+- `cost`
+- `stock_available`
+- `promotion_flag`
+
+Optional columns:
+
+- `discount_rate`
+- `channel`
+- `region`
+- `competitor_price`
+- `marketing_spend`
+- `traffic`
+- `holiday_flag`
+- `customer_segment`
+- `returns`
+- `weather_index`
+
+The internal MVP grain is weekly product x channel x region. Daily inputs are aggregated before modeling.
+
+## Reliability Rules
+
+Recommendations are blocked or degraded when the history is short, price variation is too weak, price is almost constant, stockouts are too frequent, promotions dominate the sample, backtesting is poor, the scenario extrapolates too far, or margin optimization is requested without cost data.
+
+Score levels:
+
+- `>=75`: normal recommendation.
+- `55-74`: cautious recommendation.
+- `35-54`: simulation only.
+- `<35`: blocked.
+
+## Statistical Limits
+
+PriceLab estimates conditional price response from observational data. It does not prove causal elasticity. Price endogeneity, promotional confounding, censored demand during stockouts, sparse histories, and channel or regional mix effects are surfaced as warnings in the reliability panel and product report.
