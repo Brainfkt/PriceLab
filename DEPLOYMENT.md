@@ -1,12 +1,12 @@
 # PriceLab Deployment
 
-PriceLab is a Streamlit application. GitHub Pages cannot run the Python app directly because Pages is static hosting. The recommended setup is:
+PriceLab is a Streamlit application. Cloudflare Pages cannot run the Python app directly because Pages is static hosting. The recommended setup is:
 
 1. Deploy the Streamlit app on Streamlit Community Cloud.
-2. Publish `docs/` on GitHub Pages with your personal domain.
-3. Make the GitHub Pages URL redirect directly to the Streamlit app.
+2. Publish `docs/` on Cloudflare Pages from the GitHub repository.
+3. Make the Cloudflare Pages URL redirect directly to the Streamlit app.
 
-This gives you a clean public URL using your own domain, while Streamlit runs the interactive Python workload. The GitHub repository URL itself (`https://github.com/Brainfkt/PriceLab`) cannot be converted into an HTTP redirect; the redirect applies to the repository's GitHub Pages URL or custom domain.
+This gives you a clean public URL using Cloudflare or your own domain, while Streamlit runs the interactive Python workload. The GitHub repository URL itself (`https://github.com/Brainfkt/PriceLab`) cannot be converted into an HTTP redirect; the redirect applies to the Cloudflare Pages URL or custom domain.
 
 ## Streamlit Community Cloud
 
@@ -21,38 +21,51 @@ This gives you a clean public URL using your own domain, while Streamlit runs th
 
 The root `requirements.txt` is provided for Streamlit Cloud dependency installation.
 
-## Custom Domain Link Via GitHub Pages
+## Cloudflare Pages
 
-Replace placeholders in `docs/config.js`:
+Current Cloudflare Pages settings:
+
+- Project: `pricelab`
+- Public URL: `https://pricelab-71i.pages.dev`
+- Source repository: `Brainfkt/PriceLab`
+- Production branch: `main`
+- Root directory: `/`
+- Build command: empty
+- Build output directory: `docs`
+- Automatic production deployments: enabled
+
+`docs/config.js` controls the static redirect:
 
 ```js
 window.PRICELAB_DEPLOYMENT = {
   streamlitAppUrl: "https://pricelab.streamlit.app",
-  publicProjectUrl: "https://pricelab.YOUR-DOMAIN.com"
+  publicProjectUrl: "https://pricelab-71i.pages.dev"
 };
 ```
 
-Then configure GitHub Pages:
+## Custom Domain
 
-1. In GitHub repository settings, open **Pages**.
-2. Set source to the `docs/` folder on the `main` branch.
-3. Set the custom domain, for example `pricelab.YOUR-DOMAIN.com`.
-4. Enable **Enforce HTTPS** when GitHub allows it.
+To use a custom domain, add it to the Cloudflare Pages project:
+
+1. Open Cloudflare dashboard > Workers & Pages > `pricelab`.
+2. Open Custom domains.
+3. Add a subdomain, for example `pricelab.YOUR-DOMAIN.com`.
+4. Keep HTTPS enabled.
 
 DNS for a subdomain:
 
 ```text
 Type: CNAME
 Name: pricelab
-Value: Brainfkt.github.io
+Value: pricelab-71i.pages.dev
 ```
 
-If you want the apex domain, use GitHub Pages `A` records from the GitHub documentation instead.
+If the domain is already managed by Cloudflare, Pages can create or validate the required DNS record from the dashboard.
 
 ## Redirect Behavior
 
 `docs/index.html` redirects directly to `streamlitAppUrl` from `docs/config.js`.
 
-`docs/404.html` redirects unknown GitHub Pages paths to the same Streamlit app. This helps if someone opens a stale path under the custom domain.
+`docs/404.html` redirects unknown Cloudflare Pages paths to the same Streamlit app. This helps if someone opens a stale path under the custom domain.
 
 If `docs/config.js` still contains placeholders, the page does not redirect and instead shows a short setup message.

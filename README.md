@@ -6,11 +6,11 @@ The goal is portfolio-grade data science, not a descriptive dashboard. The app i
 
 ## Links
 
-- Custom-domain redirect: `https://pricelab.YOUR-DOMAIN.com`
+- Cloudflare Pages redirect: `https://pricelab-71i.pages.dev`
 - Streamlit app: `https://pricelab.streamlit.app`
 - Deployment guide: [DEPLOYMENT.md](DEPLOYMENT.md)
 
-Replace the custom-domain placeholder after Cloudflare Pages is configured. The custom-domain URL redirects to the Streamlit app; the GitHub repository URL itself remains `https://github.com/Brainfkt/PriceLab`.
+The Cloudflare Pages URL publishes the static files in `docs/` and redirects visitors to the Streamlit app. The GitHub repository URL itself remains `https://github.com/Brainfkt/PriceLab`.
 
 ## MVP Features
 
@@ -52,7 +52,7 @@ python -m pricelab.cli validate data/demo/pricelab_demo.csv
 
 ## Deploy
 
-PriceLab is a Python/Streamlit app, so the interactive application should be deployed on Streamlit Community Cloud or another Python host. GitHub Pages can publish the static portfolio page in `docs/` with a personal domain and link to the Streamlit app.
+PriceLab is a Python/Streamlit app, so the interactive application should be deployed on Streamlit Community Cloud or another Python host. Cloudflare Pages publishes the static portfolio page in `docs/` and redirects visitors to the Streamlit app.
 
 Minimum Streamlit Cloud settings:
 
@@ -61,7 +61,7 @@ Minimum Streamlit Cloud settings:
 - Main file path: `app.py`
 - Dependencies: `requirements.txt`
 
-For the custom-domain redirect, configure GitHub Pages to publish from `docs/`, then update `docs/config.js`.
+Cloudflare Pages settings: project `pricelab`, branch `main`, root `/`, empty build command, output directory `docs`.
 
 ## Expected CSV Schema
 
