@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pricelab"
+version = "0.1.0"
+description = "Local pricing intelligence simulator for portfolio-grade data science demos."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "streamlit>=1.32",
+  "pandas>=2.0",
+  "numpy>=1.24",
+  "scipy>=1.10",
+  "scikit-learn>=1.2",
+  "plotly>=5.18",
+  "pydantic>=1.10",
+  "joblib>=1.3",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=7.4",
+]
+
+[project.scripts]
+pricelab = "pricelab.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-q"
+
