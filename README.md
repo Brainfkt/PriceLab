@@ -7,10 +7,10 @@ The goal is portfolio-grade data science, not a descriptive dashboard. The app i
 ## Links
 
 - Cloudflare Pages redirect: `https://pricelab-71i.pages.dev`
-- Streamlit app: configure `docs/config.js` after deploying the app on Streamlit Community Cloud.
+- Streamlit app: `https://pricelab.streamlit.app`
 - Deployment guide: [DEPLOYMENT.md](DEPLOYMENT.md)
 
-The Cloudflare Pages URL publishes the static files in `docs/` and redirects visitors to the Streamlit app only after `docs/config.js` contains the deployed Streamlit URL. The GitHub repository URL itself remains `https://github.com/Brainfkt/PriceLab`.
+The Cloudflare Pages URL publishes the static files in `docs/` and redirects visitors to the Streamlit app configured in `docs/config.js`. The GitHub repository URL itself remains `https://github.com/Brainfkt/PriceLab`.
 
 ## MVP Features
 

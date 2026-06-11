@@ -38,12 +38,12 @@ Current Cloudflare Pages settings:
 
 ```js
 window.PRICELAB_DEPLOYMENT = {
-  streamlitAppUrl: "YOUR-STREAMLIT-SUBDOMAIN.streamlit.app",
+  streamlitAppUrl: "https://pricelab.streamlit.app",
   publicProjectUrl: "https://pricelab-71i.pages.dev"
 };
 ```
 
-Replace `YOUR-STREAMLIT-SUBDOMAIN.streamlit.app` with the actual Streamlit Community Cloud URL created from this repository. Do not use `https://pricelab.streamlit.app` unless that app is confirmed to be the PriceLab deployment.
+The configured Streamlit Community Cloud target is `https://pricelab.streamlit.app`.
 
 ## Custom Domain
 
@@ -70,4 +70,4 @@ If the domain is already managed by Cloudflare, Pages can create or validate the
 
 `docs/404.html` redirects unknown Cloudflare Pages paths to the same Streamlit app. This helps if someone opens a stale path under the custom domain.
 
-If `docs/config.js` still contains placeholders, the page does not redirect and instead shows a short setup message.
+If `docs/config.js` contains placeholders, the page does not redirect and instead shows a short setup message.
