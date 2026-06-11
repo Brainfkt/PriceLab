@@ -15,6 +15,7 @@ from pricelab.ui.pages.export import render_export_page
 from pricelab.ui.pages.opportunities import render_opportunities_page
 from pricelab.ui.pages.product import render_product_page
 from pricelab.ui.pages.simulator import render_simulator_page
+from pricelab.ui.pages.walkthrough import render_walkthrough_page
 from pricelab.ui.state import default_mapping, demo_data, feature_frame_cached, standardize_cached
 
 
@@ -39,6 +40,7 @@ def run_app() -> None:
         "Page",
         [
             "Data",
+            "Portfolio",
             "Catalogue",
             "Product",
             "Simulator",
@@ -46,7 +48,7 @@ def run_app() -> None:
             "Explainability",
             "Export",
         ],
-        index=1,
+        index=2,
     )
     if quality_report.error_count:
         st.error("Fix data quality errors before running modelling or recommendations.")
@@ -72,7 +74,9 @@ def run_app() -> None:
     if page in {"Simulator", "Opportunities", "Export"}:
         objective = st.sidebar.selectbox("Objective", ["revenue", "margin", "volume", "prudence"], index=0)
 
-    if page == "Catalogue":
+    if page == "Portfolio":
+        render_walkthrough_page(frame, backtest_result)
+    elif page == "Catalogue":
         render_catalogue_page(frame, backtest_result)
     elif page == "Product":
         render_product_page(frame, selected_product, product_metrics)
@@ -83,7 +87,7 @@ def run_app() -> None:
     elif page == "Explainability":
         render_explainability_page(frame, selected_product, backtest_result)
     elif page == "Export":
-        render_export_page(frame, selected_product, objective, product_metrics)
+        render_export_page(frame, selected_product, objective, product_metrics, backtest_result)
 
 
 def _sidebar_data_source() -> tuple[pd.DataFrame, ColumnMapping]:

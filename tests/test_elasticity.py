@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 from pricelab.features.build import build_model_frame
-from pricelab.modeling.elasticity import fit_loglog_elasticity
+from pricelab.modeling.elasticity import fit_loglog_elasticity, fit_segment_elasticities
 
 
 def test_elasticity_is_negative_on_controlled_demand_curve():
@@ -30,3 +30,6 @@ def test_elasticity_is_negative_on_controlled_demand_curve():
     assert result.n_obs == 40
     assert result.price_points == 40
 
+    segments = fit_segment_elasticities(frame, "category", min_obs=20)
+    assert {"segment_type", "segment", "category", "elasticity"}.issubset(segments.columns)
+    assert segments["segment"].tolist() == ["Tools"]

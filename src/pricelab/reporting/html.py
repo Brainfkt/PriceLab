@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import html
 
+import plotly.graph_objects as go
+import plotly.io as pio
+
 
 def markdown_to_basic_html(markdown_text: str) -> str:
     body_lines: list[str] = []
@@ -45,3 +48,13 @@ def markdown_to_basic_html(markdown_text: str) -> str:
         + "</body></html>"
     )
 
+
+def build_html_report_with_figures(markdown_text: str, figures: list[tuple[str, go.Figure]]) -> str:
+    base = markdown_to_basic_html(markdown_text)
+    figure_html: list[str] = []
+    include_js = True
+    for title, figure in figures:
+        figure_html.append(f"<h2>{html.escape(title)}</h2>")
+        figure_html.append(pio.to_html(figure, include_plotlyjs="cdn" if include_js else False, full_html=False))
+        include_js = False
+    return base.replace("</body></html>", "\n".join(figure_html) + "</body></html>")

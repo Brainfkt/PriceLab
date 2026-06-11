@@ -39,3 +39,19 @@ def test_optimizer_returns_recommendation_or_cautious_result():
         assert result.recommended_price is not None
         assert result.lower_price <= result.recommended_price <= result.upper_price
 
+
+def test_scenario_accepts_context_and_caps_by_stock():
+    result = simulate_price_scenario(
+        _sim_data(),
+        "A",
+        10.0,
+        discount_rate=0.2,
+        channel="Online",
+        region="North",
+        month=3,
+        stock_available=25.0,
+    )
+    assert result.predicted_units <= 25.0
+    assert result.context["discount_rate"] == 0.2
+    assert result.context["channel"] == "Online"
+    assert any("stock" in warning.lower() for warning in result.warnings)

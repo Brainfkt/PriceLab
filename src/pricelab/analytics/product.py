@@ -36,7 +36,11 @@ def price_performance_bins(df: pd.DataFrame, product_id: str, bins: int = 8) -> 
     product["price_bin"] = pd.qcut(product["price"], q=min(bins, product["price"].nunique()), duplicates="drop")
     product["revenue"] = product["units_sold"] * product["price"]
     product["gross_margin"] = (product["price"] - product["cost"]) * product["units_sold"] if "cost" in product.columns else np.nan
-    return (
+    if "promotion_flag" not in product.columns:
+        product["promotion_flag"] = False
+    if "stockout_flag" not in product.columns:
+        product["stockout_flag"] = product["stock_available"] <= 0 if "stock_available" in product.columns else False
+    result = (
         product.groupby("price_bin", observed=True)
         .agg(
             price_min=("price", "min"),
@@ -45,8 +49,12 @@ def price_performance_bins(df: pd.DataFrame, product_id: str, bins: int = 8) -> 
             units=("units_sold", "sum"),
             revenue=("revenue", "sum"),
             gross_margin=("gross_margin", "sum"),
+            promo_rate=("promotion_flag", "mean"),
+            stockout_rate=("stockout_flag", "mean"),
             observations=("price", "count"),
         )
         .reset_index()
     )
-
+    result["confidence_score"] = (result["observations"] / result["observations"].max()).clip(upper=1.0)
+    result["confidence_score"] = result["confidence_score"] * (1 - result["promo_rate"].fillna(0) * 0.35) * (1 - result["stockout_rate"].fillna(0) * 0.50)
+    return result

@@ -21,7 +21,13 @@ def regression_metrics(y_true: np.ndarray | pd.Series, y_pred: np.ndarray | pd.S
     rmse = float(np.sqrt(np.mean(err**2))) if len(true) else np.nan
     denominator = float(np.sum(np.abs(true)))
     wmape = float(np.sum(np.abs(err)) / denominator) if denominator > 0 else np.nan
+    smape_denominator = np.abs(true) + np.abs(pred)
+    valid_smape = smape_denominator > 0
+    smape = (
+        float(np.mean(2 * np.abs(err[valid_smape]) / smape_denominator[valid_smape]))
+        if valid_smape.any()
+        else np.nan
+    )
     variance = float(np.sum((true - np.mean(true)) ** 2))
     r2 = float(1 - np.sum(err**2) / variance) if variance > 0 else np.nan
-    return {"mae": mae, "rmse": rmse, "wmape": wmape, "r2": r2}
-
+    return {"mae": mae, "rmse": rmse, "wmape": wmape, "smape": smape, "r2": r2}

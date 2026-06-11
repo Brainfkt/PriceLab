@@ -20,5 +20,7 @@ def test_run_backtest_returns_metrics_on_demo_subset():
     result = run_backtest(frame, n_splits=2)
     assert result.valid
     assert result.metrics["wmape"] >= 0
+    assert result.metrics["smape"] >= 0
     assert not result.product_metrics.empty
-
+    assert not result.predictions.empty
+    assert {"date", "actual", "predicted", "baseline"}.issubset(result.predictions.columns)

@@ -16,14 +16,18 @@ The Cloudflare Pages URL publishes the static files in `docs/` and redirects vis
 
 - Streamlit app with generated demo data when no CSV is uploaded.
 - CSV import with column mapping and schema validation.
-- Data quality scanner for missing values, invalid prices, stockouts, promo contamination, and weak price variation.
-- Catalogue overview, product deep dive, price performance matrix, best moments, and promotion analysis.
+- Data quality scanner for missing values, invalid prices, cost inconsistencies, stockouts, promo contamination, temporal gaps, outliers, and weak price variation.
+- Auto grain detection: daily inputs are aggregated to weekly modelling frames, while weekly inputs stay native.
+- Portfolio and catalogue visual analytics with filters, Top N/All leaderboards, Pareto contribution, revenue-vs-margin scatterplots, category mix, and reliability health views.
+- Product deep dive with enriched price/unit history, promotion and stock markers, adaptive temporal heatmaps, price performance matrix, best moments, and promotion lift charts.
 - Log-log Ridge elasticity model per product.
-- Random Forest challenger demand model with temporal backtesting.
-- Reliability score that blocks or degrades unsafe recommendations.
-- Scenario simulator and optimal price finder for volume, revenue, margin, or prudence.
-- Catalogue opportunity scanner.
-- Markdown and HTML product report export.
+- Segment elasticity by category and season when enough data is available.
+- Random Forest challenger demand model with temporal backtesting against a baseline using wMAPE, SMAPE, MAE, RMSE, and R2.
+- Reliability score with hard blocks, strengths, warnings, data-quality and demand-stability components.
+- Contextual scenario simulator with price, discount, channel, region, month, stock, uncertainty bands, observed-range markers, and scenario curves for volume, revenue, and margin.
+- Optimal price finder for volume, revenue, margin, or prudence.
+- Catalogue opportunity scanner with action categories and a reliability-vs-impact opportunity matrix.
+- Markdown and enriched HTML product report export with context metadata and embedded Plotly charts.
 
 ## Install
 
@@ -90,7 +94,7 @@ Optional columns:
 - `returns`
 - `weather_index`
 
-The internal MVP grain is weekly product x channel x region. Daily inputs are aggregated before modeling.
+The model frame supports product x date x channel x region. Daily inputs are aggregated before modeling; weekly inputs stay at native grain.
 
 ## Reliability Rules
 

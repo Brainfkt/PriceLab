@@ -101,12 +101,44 @@ def aggregate_to_weekly(df: pd.DataFrame) -> pd.DataFrame:
     return grouped.sort_values(["product_id", "channel", "region", "date"]).reset_index(drop=True)
 
 
-def build_model_frame(df: pd.DataFrame, weekly: bool = True) -> pd.DataFrame:
-    frame = aggregate_to_weekly(df) if weekly else df.copy()
+def build_model_frame(df: pd.DataFrame, weekly: bool | str = "auto") -> pd.DataFrame:
+    source_grain = infer_temporal_grain(df)
+    use_weekly = source_grain == "daily" if weekly == "auto" else bool(weekly)
+    frame = aggregate_to_weekly(df) if use_weekly else df.copy()
+    frame["date"] = pd.to_datetime(frame["date"], errors="coerce")
+    frame["source_grain"] = source_grain
+    frame["model_grain"] = "weekly" if use_weekly else "native"
     frame = add_calendar_features(frame)
     frame = add_price_features(frame)
     frame = add_lag_features(frame)
     return frame.replace([np.inf, -np.inf], np.nan)
+
+
+def infer_temporal_grain(df: pd.DataFrame) -> str:
+    if df.empty or "date" not in df.columns:
+        return "unknown"
+    frame = df.copy()
+    frame["date"] = pd.to_datetime(frame["date"], errors="coerce")
+    group_cols = [col for col in ["product_id", "channel", "region"] if col in frame.columns]
+    gaps: list[float] = []
+    if group_cols:
+        for _, group in frame.dropna(subset=["date"]).groupby(group_cols, dropna=False):
+            dates = group["date"].drop_duplicates().sort_values()
+            if len(dates) >= 2:
+                gaps.extend(dates.diff().dropna().dt.days.astype(float).tolist())
+    else:
+        dates = frame["date"].dropna().drop_duplicates().sort_values()
+        gaps.extend(dates.diff().dropna().dt.days.astype(float).tolist())
+    if not gaps:
+        return "unknown"
+    median_gap = float(np.median(gaps))
+    if median_gap <= 2:
+        return "daily"
+    if 5 <= median_gap <= 9:
+        return "weekly"
+    if 25 <= median_gap <= 35:
+        return "monthly"
+    return "irregular"
 
 
 def add_lag_features(df: pd.DataFrame) -> pd.DataFrame:
@@ -117,6 +149,13 @@ def add_lag_features(df: pd.DataFrame) -> pd.DataFrame:
     out["rolling_units_4"] = group["units_sold"].transform(lambda s: s.shift(1).rolling(4, min_periods=1).mean())
     out["rolling_price_4"] = group["price"].transform(lambda s: s.shift(1).rolling(4, min_periods=1).mean())
     out["price_change_pct"] = (out["price"] / out["lag_price_1"] - 1).replace([np.inf, -np.inf], np.nan).fillna(0)
+    price_changed = group["price"].diff().abs().fillna(0) > 0.005
+    out["_price_change_marker"] = out["date"].where(price_changed)
+    out["_last_price_change_date"] = out.groupby(["product_id", "channel", "region"], dropna=False)["_price_change_marker"].ffill()
+    out["days_since_price_change"] = (
+        (pd.to_datetime(out["date"]) - pd.to_datetime(out["_last_price_change_date"])).dt.days.fillna(0).clip(lower=0)
+    )
+    out = out.drop(columns=["_price_change_marker", "_last_price_change_date"])
     out["rolling_units_4"] = out["rolling_units_4"].fillna(out["units_sold"].median())
     out["rolling_price_4"] = out["rolling_price_4"].fillna(out["price"].median())
     out["lag_units_1"] = out["lag_units_1"].fillna(out["rolling_units_4"])
@@ -146,8 +185,10 @@ def model_feature_columns(df: pd.DataFrame) -> tuple[list[str], list[str]]:
         "rolling_units_4",
         "rolling_price_4",
         "price_change_pct",
+        "days_since_price_change",
+        "day_of_week",
     ]
-    categorical_candidates = ["product_id", "category", "channel", "region", "customer_segment"]
+    categorical_candidates = ["product_id", "category", "channel", "region", "customer_segment", "season", "price_bucket", "promo_depth_bucket"]
     numeric = [col for col in numeric_candidates if col in df.columns]
     categorical = [col for col in categorical_candidates if col in df.columns]
     return numeric, categorical

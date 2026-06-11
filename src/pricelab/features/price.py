@@ -13,9 +13,11 @@ def add_price_features(df: pd.DataFrame) -> pd.DataFrame:
     out["revenue"] = out["units_sold"] * out["price"]
 
     if "cost" in out.columns:
+        out["unit_margin"] = out["price"] - out["cost"]
         out["gross_margin"] = (out["price"] - out["cost"]) * out["units_sold"]
         out["margin_rate"] = np.where(out["price"] > 0, (out["price"] - out["cost"]) / out["price"], np.nan)
     else:
+        out["unit_margin"] = np.nan
         out["gross_margin"] = np.nan
         out["margin_rate"] = np.nan
 
@@ -59,6 +61,30 @@ def add_price_features(df: pd.DataFrame) -> pd.DataFrame:
         if col not in out.columns:
             out[col] = default
 
+    out["price_bucket"] = _bucket_by_quantile(out["price"], max_bins=5, prefix="P")
+    out["promo_depth_bucket"] = _promo_depth_bucket(out["discount_rate"].fillna(0))
     out["promo_discount_interaction"] = out["promotion_flag"].astype(float) * out["discount_rate"].fillna(0)
     return out
 
+
+def _bucket_by_quantile(series: pd.Series, max_bins: int, prefix: str) -> pd.Series:
+    clean = pd.to_numeric(series, errors="coerce")
+    unique = int(clean.nunique(dropna=True))
+    if unique < 2:
+        return pd.Series([f"{prefix}1"] * len(series), index=series.index)
+    bins = min(max_bins, unique)
+    try:
+        bucket = pd.qcut(clean, q=bins, labels=False, duplicates="drop")
+    except ValueError:
+        return pd.Series([f"{prefix}1"] * len(series), index=series.index)
+    return bucket.fillna(0).astype(int).add(1).map(lambda value: f"{prefix}{value}")
+
+
+def _promo_depth_bucket(series: pd.Series) -> pd.Series:
+    clean = pd.to_numeric(series, errors="coerce").fillna(0).clip(lower=0)
+    return pd.cut(
+        clean,
+        bins=[-0.001, 0.0, 0.10, 0.20, 0.35, np.inf],
+        labels=["none", "light", "medium", "deep", "extreme"],
+        include_lowest=True,
+    ).astype(str)

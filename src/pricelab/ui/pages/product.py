@@ -5,10 +5,20 @@ import streamlit as st
 
 from pricelab.analytics.moments import best_moments
 from pricelab.analytics.product import price_performance_bins, product_summary
-from pricelab.analytics.promotions import promotion_summary
+from pricelab.analytics.promotions import promotion_depth_summary, promotion_summary, promotion_timing_effect
 from pricelab.modeling.elasticity import fit_loglog_elasticity
 from pricelab.modeling.reliability import compute_reliability
-from pricelab.ui.components import compact_number, price_bin_chart, price_units_chart, reliability_components_chart, reliability_gauge, revenue_margin_chart
+from pricelab.ui.components import (
+    compact_number,
+    price_bin_chart,
+    price_units_chart,
+    promotion_depth_chart,
+    promotion_timing_chart,
+    reliability_components_chart,
+    reliability_gauge,
+    revenue_margin_chart,
+    temporal_heatmap_chart,
+)
 
 
 def render_product_page(df: pd.DataFrame, product_id: str, product_metrics: pd.DataFrame | None) -> None:
@@ -24,8 +34,12 @@ def render_product_page(df: pd.DataFrame, product_id: str, product_metrics: pd.D
     cols[3].metric("Price points", f"{summary['price_points']}")
     cols[4].metric("Stockout rate", f"{summary['stockout_rate']:.1%}")
 
+    st.write("Price, demand, promotions and stock pressure")
     st.plotly_chart(price_units_chart(df, product_id), use_container_width=True)
+    st.write("Revenue and margin history")
     st.plotly_chart(revenue_margin_chart(df, product_id), use_container_width=True)
+    st.write("Seasonality and promotion depth")
+    st.plotly_chart(temporal_heatmap_chart(df, product_id), use_container_width=True)
 
     reliability = compute_reliability(df, product_id, product_backtest_metrics=product_metrics)
     left, right = st.columns([1, 2])
@@ -35,7 +49,9 @@ def render_product_page(df: pd.DataFrame, product_id: str, product_metrics: pd.D
         st.plotly_chart(reliability_components_chart(reliability.components), use_container_width=True)
     if reliability.hard_blocks:
         st.error("Blocked: " + "; ".join(reliability.hard_blocks))
-    elif reliability.reasons:
+    if reliability.strengths:
+        st.success("Strengths: " + "; ".join(reliability.strengths[:4]))
+    if reliability.reasons and not reliability.hard_blocks:
         st.warning("; ".join(reliability.reasons))
 
     elasticity = fit_loglog_elasticity(df, product_id)
@@ -50,12 +66,25 @@ def render_product_page(df: pd.DataFrame, product_id: str, product_metrics: pd.D
         st.warning("; ".join(elasticity.warnings))
 
     st.write("Price performance matrix")
-    st.plotly_chart(price_bin_chart(price_performance_bins(df, product_id)), use_container_width=True)
+    bins = price_performance_bins(df, product_id)
+    st.plotly_chart(price_bin_chart(bins), use_container_width=True)
+    if not bins.empty:
+        st.dataframe(bins.drop(columns=["price_bin"], errors="ignore"), use_container_width=True)
 
+    depth = promotion_depth_summary(df, product_id)
+    timing = promotion_timing_effect(df, product_id)
     c1, c2 = st.columns(2)
     with c1:
         st.write("Best moments")
         st.dataframe(best_moments(df, product_id), use_container_width=True)
     with c2:
         st.write("Promotion analyzer")
+        st.plotly_chart(promotion_depth_chart(depth), use_container_width=True)
+        st.plotly_chart(promotion_timing_chart(timing), use_container_width=True)
+    with st.expander("Promotion detail tables"):
+        st.write("Promotion summary")
         st.dataframe(promotion_summary(df, product_id), use_container_width=True)
+        st.write("Discount depth")
+        st.dataframe(depth, use_container_width=True)
+        st.write("Pre / post promotion")
+        st.dataframe(timing, use_container_width=True)

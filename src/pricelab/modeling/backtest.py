@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 import pandas as pd
@@ -17,6 +17,7 @@ class BacktestResult:
     fold_metrics: pd.DataFrame
     product_metrics: pd.DataFrame
     message: str = ""
+    predictions: pd.DataFrame = field(default_factory=pd.DataFrame)
 
 
 def make_time_splits(dates: list[pd.Timestamp], n_splits: int = 3) -> list[tuple[pd.Timestamp, pd.Timestamp, pd.Timestamp]]:
@@ -81,6 +82,8 @@ def run_backtest(df: pd.DataFrame, n_splits: int = 3, random_state: int = 42) ->
         pred_rows.append(
             pd.DataFrame(
                 {
+                    "fold": fold_idx,
+                    "date": test["date"].to_numpy(),
                     "product_id": test["product_id"].astype(str).to_numpy(),
                     "actual": test["units_sold"].astype(float).to_numpy(),
                     "predicted": pred,
@@ -109,7 +112,7 @@ def run_backtest(df: pd.DataFrame, n_splits: int = 3, random_state: int = 42) ->
         "wmape_gain_vs_baseline": baseline_metrics["wmape"] - model_metrics["wmape"],
         "fold_count": float(len(fold_metrics)),
     }
-    return BacktestResult(valid=True, metrics=metrics, fold_metrics=fold_metrics, product_metrics=product_metrics)
+    return BacktestResult(valid=True, metrics=metrics, fold_metrics=fold_metrics, product_metrics=product_metrics, predictions=all_predictions)
 
 
 def _product_metrics(predictions: pd.DataFrame) -> pd.DataFrame:
@@ -136,4 +139,3 @@ def _ensure_feature_frame(df: pd.DataFrame) -> pd.DataFrame:
     if {"log_price", "rolling_units_4", "week_sin"}.issubset(df.columns):
         return df.copy()
     return build_model_frame(df, weekly=False)
-

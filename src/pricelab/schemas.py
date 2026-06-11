@@ -75,6 +75,7 @@ class ReliabilityResult(BaseModel):
     score: float
     level: str
     components: dict[str, float]
+    strengths: list[str] = Field(default_factory=list)
     reasons: list[str] = Field(default_factory=list)
     hard_blocks: list[str] = Field(default_factory=list)
 
@@ -98,6 +99,7 @@ class ScenarioResult(BaseModel):
     high_units: float
     reliability_score: float
     status: str
+    context: dict[str, Any] = Field(default_factory=dict)
     warnings: list[str] = Field(default_factory=list)
 
 

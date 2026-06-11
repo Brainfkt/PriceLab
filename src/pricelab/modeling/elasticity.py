@@ -131,6 +131,38 @@ def fit_catalogue_elasticities(df: pd.DataFrame, min_obs: int = 8) -> pd.DataFra
     return pd.DataFrame(rows)
 
 
+def fit_segment_elasticities(df: pd.DataFrame, segment_col: str, min_obs: int = 20) -> pd.DataFrame:
+    frame = _ensure_feature_frame(df)
+    if segment_col not in frame.columns:
+        return pd.DataFrame(columns=["segment_type", "segment", "elasticity", "n_obs", "price_points", "r2_train"])
+    rows: list[dict[str, object]] = []
+    for value, group in frame.groupby(segment_col, dropna=False):
+        usable = group[(group["price"] > 0) & (group["units_sold"] >= 0)].copy()
+        if "stockout_flag" in usable.columns and int((~usable["stockout_flag"].astype(bool)).sum()) >= min_obs:
+            usable = usable[~usable["stockout_flag"].astype(bool)].copy()
+        n_obs = int(len(usable))
+        price_points = int(usable["price"].nunique()) if "price" in usable.columns else 0
+        if n_obs < min_obs or price_points < 3:
+            continue
+        X = _design_matrix(usable)
+        y = usable["log_units"].astype(float).to_numpy()
+        model = Ridge(alpha=0.05)
+        model.fit(X, y)
+        pred = model.predict(X)
+        rows.append(
+            {
+                "segment_type": segment_col,
+                "segment": str(value),
+                segment_col: str(value),
+                "elasticity": float(dict(zip(X.columns, model.coef_)).get("log_price", np.nan)),
+                "n_obs": n_obs,
+                "price_points": price_points,
+                "r2_train": float(r2_score(y, pred)) if len(np.unique(y)) > 1 else np.nan,
+            }
+        )
+    return pd.DataFrame(rows)
+
+
 def predict_units_from_elasticity(result: ElasticityResult, df: pd.DataFrame) -> np.ndarray:
     if result.model is None:
         return np.full(len(df), np.nan)

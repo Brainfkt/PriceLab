@@ -91,6 +91,20 @@ def scan_quality(df: pd.DataFrame) -> DataQualityReport:
                     )
                 )
 
+    if {"price", "cost"}.issubset(df.columns):
+        valid_margin = df["price"].notna() & df["cost"].notna()
+        bad_margin = int((df.loc[valid_margin, "cost"] >= df.loc[valid_margin, "price"]).sum())
+        metrics["non_positive_unit_margin_rows"] = bad_margin
+        if bad_margin:
+            issues.append(
+                DataQualityIssue(
+                    severity=Severity.WARNING,
+                    code="non_positive_unit_margin",
+                    message="Some rows have cost greater than or equal to price.",
+                    metric=bad_margin,
+                )
+            )
+
     duplicate_cols = [col for col in KEY_COLUMNS if col in df.columns]
     if len(duplicate_cols) == len(KEY_COLUMNS):
         duplicate_rows = int(df.duplicated(duplicate_cols).sum())
@@ -158,6 +172,51 @@ def scan_quality(df: pd.DataFrame) -> DataQualityReport:
                     product_id=str(row["product_id"]),
                 )
             )
+        price_outliers = []
+        temporal_gaps = []
+        for product_id, product in df.groupby("product_id"):
+            price_scope = product
+            if "promotion_flag" in product.columns:
+                non_promo = product[~product["promotion_flag"].fillna(False).astype(bool)]
+                if len(non_promo) >= 8:
+                    price_scope = non_promo
+            prices = pd.to_numeric(price_scope["price"], errors="coerce").dropna()
+            if len(prices) >= 8:
+                q1 = float(prices.quantile(0.25))
+                q3 = float(prices.quantile(0.75))
+                iqr = q3 - q1
+                if iqr > 0:
+                    outlier_count = int(((prices < q1 - 3 * iqr) | (prices > q3 + 3 * iqr)).sum())
+                    if outlier_count >= 5 and outlier_count / len(prices) >= 0.05:
+                        price_outliers.append((product_id, outlier_count))
+            dates = pd.to_datetime(product["date"], errors="coerce").dropna().drop_duplicates().sort_values()
+            if len(dates) >= 4:
+                max_gap = int(dates.diff().dropna().dt.days.max())
+                median_gap = float(dates.diff().dropna().dt.days.median())
+                if median_gap > 0 and max_gap > max(21, 3 * median_gap):
+                    temporal_gaps.append((product_id, max_gap))
+        metrics["products_with_price_outliers"] = int(len(price_outliers))
+        for product_id, count in price_outliers[:20]:
+            issues.append(
+                DataQualityIssue(
+                    severity=Severity.WARNING,
+                    code="price_outliers",
+                    message="Product has extreme price values compared with its usual range.",
+                    metric=count,
+                    product_id=str(product_id),
+                )
+            )
+        metrics["products_with_temporal_gaps"] = int(len(temporal_gaps))
+        for product_id, max_gap in temporal_gaps[:20]:
+            issues.append(
+                DataQualityIssue(
+                    severity=Severity.WARNING,
+                    code="temporal_gap",
+                    message="Product has a large gap in its sales history.",
+                    metric=f"max gap {max_gap} days",
+                    product_id=str(product_id),
+                )
+            )
 
     return DataQualityReport(
         row_count=row_count,
@@ -180,4 +239,3 @@ def _date_string(value: object) -> str | None:
     if pd.isna(value):
         return None
     return pd.Timestamp(value).date().isoformat()
-

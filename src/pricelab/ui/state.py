@@ -22,9 +22,8 @@ def standardize_cached(raw: pd.DataFrame, mapping_dict: dict[str, str | None]) -
 
 @st.cache_data(show_spinner=False)
 def feature_frame_cached(df: pd.DataFrame) -> pd.DataFrame:
-    return build_model_frame(df, weekly=True)
+    return build_model_frame(df, weekly="auto")
 
 
 def default_mapping(raw: pd.DataFrame) -> ColumnMapping:
     return infer_column_mapping(raw.columns)
-

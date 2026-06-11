@@ -67,6 +67,9 @@ def build_product_markdown_report(
     lines.extend(["", "## Reliability Drivers"])
     for name, value in reliability.components.items():
         lines.append(f"- {name}: {value:.2f}")
+    if reliability.strengths:
+        lines.extend(["", "## Strengths"])
+        lines.extend([f"- {reason}" for reason in reliability.strengths])
     if reliability.hard_blocks:
         lines.extend(["", "## Hard Blocks"])
         lines.extend([f"- {reason}" for reason in reliability.hard_blocks])
@@ -84,4 +87,3 @@ def build_product_markdown_report(
         ]
     )
     return "\n".join(lines)
-
