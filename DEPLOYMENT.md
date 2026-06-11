@@ -38,10 +38,12 @@ Current Cloudflare Pages settings:
 
 ```js
 window.PRICELAB_DEPLOYMENT = {
-  streamlitAppUrl: "https://pricelab.streamlit.app",
+  streamlitAppUrl: "YOUR-STREAMLIT-SUBDOMAIN.streamlit.app",
   publicProjectUrl: "https://pricelab-71i.pages.dev"
 };
 ```
+
+Replace `YOUR-STREAMLIT-SUBDOMAIN.streamlit.app` with the actual Streamlit Community Cloud URL created from this repository. Do not use `https://pricelab.streamlit.app` unless that app is confirmed to be the PriceLab deployment.
 
 ## Custom Domain
 

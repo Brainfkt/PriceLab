@@ -4,7 +4,8 @@ import argparse
 from pathlib import Path
 
 from pricelab.data.demo_generator import save_demo_dataset
-from pricelab.data.importers import load_and_standardize
+from pricelab.data.importers import load_csv, standardize_columns
+from pricelab.data.mapping import infer_column_mapping, missing_required_columns
 from pricelab.data.quality import quality_score, scan_quality
 
 
@@ -25,7 +26,13 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Demo dataset written to {out_path}")
         return 0
     if args.command == "validate":
-        df = load_and_standardize(args.csv_path)
+        raw = load_csv(args.csv_path)
+        mapping = infer_column_mapping(raw.columns)
+        missing = missing_required_columns(mapping)
+        if missing:
+            print("ERROR missing_required_mappings: " + ", ".join(missing))
+            return 1
+        df = standardize_columns(raw, mapping)
         report = scan_quality(df)
         print(f"Rows: {report.row_count}")
         print(f"Products: {report.product_count}")
@@ -39,4 +46,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

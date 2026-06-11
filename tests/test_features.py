@@ -11,3 +11,8 @@ def test_feature_frame_adds_business_and_time_features():
     assert frame["rolling_units_4"].isna().sum() == 0
     assert frame["revenue"].sum() > 0
 
+
+def test_weekly_aggregation_uses_monday_week_start():
+    df = standardize_columns(generate_demo_dataset(seed=2, n_products=1, periods=1))
+    frame = build_model_frame(df, weekly=True)
+    assert frame["date"].dt.weekday.eq(0).all()

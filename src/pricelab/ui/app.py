@@ -29,17 +29,14 @@ def run_app() -> None:
         st.error("Missing required mappings: " + ", ".join(missing))
         st.stop()
 
-    df = standardize_cached(raw_df, mapping.as_dict())
+    try:
+        df = standardize_cached(raw_df, mapping.as_dict())
+    except ValueError as exc:
+        st.error(str(exc))
+        st.stop()
     quality_report = scan_quality(df)
-    frame = feature_frame_cached(df)
-    backtest_result = _maybe_backtest(frame)
-    product_metrics = backtest_result.product_metrics if backtest_result and backtest_result.valid else None
-
-    products = sorted(frame["product_id"].astype(str).unique())
-    selected_product = st.sidebar.selectbox("Product", products, index=0 if products else None)
-    objective = st.sidebar.selectbox("Objective", ["revenue", "margin", "volume", "prudence"], index=0)
-
-    tabs = st.tabs(
+    page = st.sidebar.radio(
+        "Page",
         [
             "Data",
             "Catalogue",
@@ -48,21 +45,44 @@ def run_app() -> None:
             "Opportunities",
             "Explainability",
             "Export",
-        ]
+        ],
+        index=1,
     )
-    with tabs[0]:
+    if quality_report.error_count:
+        st.error("Fix data quality errors before running modelling or recommendations.")
         render_data_page(raw_df, df, quality_report, mapping)
-    with tabs[1]:
+        st.stop()
+    if page == "Data":
+        render_data_page(raw_df, df, quality_report, mapping)
+        return
+
+    frame = feature_frame_cached(df)
+    if frame.empty:
+        st.error("No modelable rows are available after feature engineering.")
+        st.stop()
+
+    backtest_result = _maybe_backtest(frame)
+    product_metrics = backtest_result.product_metrics if backtest_result and backtest_result.valid else None
+
+    products = sorted(frame["product_id"].astype(str).unique())
+    selected_product = None
+    if page in {"Product", "Simulator", "Explainability", "Export"}:
+        selected_product = st.sidebar.selectbox("Product", products, index=0 if products else None)
+    objective = "revenue"
+    if page in {"Simulator", "Opportunities", "Export"}:
+        objective = st.sidebar.selectbox("Objective", ["revenue", "margin", "volume", "prudence"], index=0)
+
+    if page == "Catalogue":
         render_catalogue_page(frame, backtest_result)
-    with tabs[2]:
+    elif page == "Product":
         render_product_page(frame, selected_product, product_metrics)
-    with tabs[3]:
+    elif page == "Simulator":
         render_simulator_page(frame, selected_product, objective, product_metrics)
-    with tabs[4]:
+    elif page == "Opportunities":
         render_opportunities_page(frame, objective, product_metrics)
-    with tabs[5]:
+    elif page == "Explainability":
         render_explainability_page(frame, selected_product, backtest_result)
-    with tabs[6]:
+    elif page == "Export":
         render_export_page(frame, selected_product, objective, product_metrics)
 
 

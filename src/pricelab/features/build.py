@@ -13,30 +13,90 @@ GROUP_KEYS = ["product_id", "product_name", "category", "channel", "region"]
 def aggregate_to_weekly(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()
     out["date"] = pd.to_datetime(out["date"])
-    out["week_start"] = out["date"].dt.to_period("W-MON").dt.start_time
+    out["week_start"] = out["date"].dt.to_period("W-SUN").dt.start_time
+    defaults = {
+        "cost": np.nan,
+        "stock_available": np.nan,
+        "promotion_flag": False,
+        "discount_rate": 0.0,
+        "holiday_flag": False,
+    }
+    for col, default in defaults.items():
+        if col not in out.columns:
+            out[col] = default
 
-    optional_aggs: dict[str, tuple[str, str]] = {}
+    if out.empty:
+        columns = GROUP_KEYS + [
+            "date",
+            "units_sold",
+            "price",
+            "cost",
+            "stock_available",
+            "promotion_flag",
+            "discount_rate",
+            "holiday_flag",
+        ]
+        for col in ["competitor_price", "weather_index", "marketing_spend", "traffic", "returns", "customer_segment"]:
+            if col in out.columns:
+                columns.append(col)
+        return pd.DataFrame(columns=columns)
+
+    keys = GROUP_KEYS + ["week_start"]
+    units = pd.to_numeric(out["units_sold"], errors="coerce").fillna(0).clip(lower=0)
+    price = pd.to_numeric(out["price"], errors="coerce")
+    cost = pd.to_numeric(out["cost"], errors="coerce") if "cost" in out.columns else pd.Series(np.nan, index=out.index)
+    price_weight = units.where(price.notna(), 0)
+    cost_weight = units.where(cost.notna(), 0)
+    out["_price_weight"] = price_weight
+    out["_price_weighted"] = price.fillna(0) * price_weight
+    out["_cost_weight"] = cost_weight
+    out["_cost_weighted"] = cost.fillna(0) * cost_weight
+
+    aggs: dict[str, tuple[str, str]] = {
+        "units_sold": ("units_sold", "sum"),
+        "price_mean": ("price", "mean"),
+        "price_weight": ("_price_weight", "sum"),
+        "price_weighted": ("_price_weighted", "sum"),
+        "cost_mean": ("cost", "mean"),
+        "cost_weight": ("_cost_weight", "sum"),
+        "cost_weighted": ("_cost_weighted", "sum"),
+        "stock_available": ("stock_available", "sum"),
+        "promotion_flag": ("promotion_flag", "max"),
+        "discount_rate": ("discount_rate", "mean"),
+        "holiday_flag": ("holiday_flag", "max"),
+    }
     for col in ["competitor_price", "weather_index"]:
         if col in out.columns:
-            optional_aggs[col] = (col, "mean")
+            aggs[col] = (col, "mean")
     for col in ["marketing_spend", "traffic", "returns"]:
         if col in out.columns:
-            optional_aggs[col] = (col, "sum")
-    for col in ["customer_segment"]:
-        if col in out.columns:
-            optional_aggs[col] = (col, _mode_or_unknown)
+            aggs[col] = (col, "sum")
 
-    grouped_obj = out.groupby(GROUP_KEYS + ["week_start"], dropna=False)
-    try:
-        grouped = grouped_obj.apply(_aggregate_group, include_groups=False)
-    except TypeError:
-        grouped = grouped_obj.apply(_aggregate_group)
-    grouped = grouped.reset_index().rename(columns={"week_start": "date"})
-
-    for col, (_, agg) in optional_aggs.items():
-        if col not in grouped.columns:
-            extra = out.groupby(GROUP_KEYS + ["week_start"], dropna=False).agg(value=(col, agg)).reset_index()
-            grouped[col] = extra["value"].to_numpy()
+    grouped = out.groupby(keys, dropna=False).agg(**aggs).reset_index()
+    grouped["price"] = np.where(
+        grouped["price_weight"] > 0,
+        grouped["price_weighted"] / grouped["price_weight"],
+        grouped["price_mean"],
+    )
+    grouped["cost"] = np.where(
+        grouped["cost_weight"] > 0,
+        grouped["cost_weighted"] / grouped["cost_weight"],
+        grouped["cost_mean"],
+    )
+    grouped = grouped.drop(
+        columns=[
+            "price_mean",
+            "price_weight",
+            "price_weighted",
+            "cost_mean",
+            "cost_weight",
+            "cost_weighted",
+        ]
+    )
+    if "customer_segment" in out.columns:
+        segment = out.groupby(keys, dropna=False)["customer_segment"].agg(_mode_or_unknown).reset_index(name="customer_segment")
+        grouped = grouped.merge(segment, on=keys, how="left")
+    grouped = grouped.rename(columns={"week_start": "date"})
 
     return grouped.sort_values(["product_id", "channel", "region", "date"]).reset_index(drop=True)
 

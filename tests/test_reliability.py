@@ -34,3 +34,18 @@ def test_reliability_blocks_margin_without_cost():
     assert result.level == "blocked"
     assert any("Cost" in block for block in result.hard_blocks)
 
+
+def test_reliability_caps_recommendation_without_backtest():
+    df = _base_product([8 + i * 0.2 for i in range(30)])
+    result = compute_reliability(df, "A")
+    assert result.level == "simulation_only"
+    assert result.score < 55
+    assert any("backtest" in reason.lower() for reason in result.reasons)
+
+
+def test_reliability_allows_normal_level_with_good_backtest():
+    df = _base_product([8 + i * 0.2 for i in range(30)])
+    metrics = pd.DataFrame({"product_id": ["A"], "wmape": [0.15], "baseline_wmape": [0.25]})
+    result = compute_reliability(df, "A", product_backtest_metrics=metrics)
+    assert result.level in {"normal", "cautious"}
+    assert not any("backtest" in reason.lower() for reason in result.reasons)

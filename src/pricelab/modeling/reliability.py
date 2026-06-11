@@ -47,6 +47,7 @@ def compute_reliability(
     price_cv = float(product["price"].std(ddof=0) / price_mean) if price_mean > 0 else 0.0
     stockout_rate = float((product.get("stock_available", pd.Series(index=product.index, data=1)) <= 0).mean())
     promo_rate = float(product.get("promotion_flag", pd.Series(index=product.index, data=False)).astype(bool).mean())
+    has_product_backtest = _has_product_backtest(product_id, product_backtest_metrics)
 
     components = {
         "history": _linear_component(history_days, THRESHOLDS.min_history_days, THRESHOLDS.full_history_days),
@@ -80,6 +81,8 @@ def compute_reliability(
         reasons.append(f"Promotion rate is {promo_rate:.1%}.")
 
     score = 100 * sum(WEIGHTS[name] * components[name] for name in WEIGHTS)
+    if not has_product_backtest and not hard_blocks:
+        score = min(score, THRESHOLDS.cautious_score - 1.0)
     if hard_blocks:
         score = min(score, 34.0)
     score = float(max(0.0, min(100.0, score)))
@@ -137,6 +140,16 @@ def _model_component(product_id: str, metrics: pd.DataFrame | None, reasons: lis
     return 0.7 * quality + 0.3 * improvement_score
 
 
+def _has_product_backtest(product_id: str, metrics: pd.DataFrame | None) -> bool:
+    if metrics is None or metrics.empty or "product_id" not in metrics.columns:
+        return False
+    row = metrics[metrics["product_id"].astype(str) == str(product_id)]
+    if row.empty:
+        return False
+    wmape = float(row.iloc[0].get("wmape", np.nan))
+    return bool(np.isfinite(wmape))
+
+
 def _extrapolation_component(product: pd.DataFrame, scenario_price: float | None, hard_blocks: list[str]) -> float:
     if scenario_price is None:
         return 1.0
@@ -191,4 +204,3 @@ def _dedupe(values: list[str]) -> list[str]:
             out.append(value)
             seen.add(value)
     return out
-
