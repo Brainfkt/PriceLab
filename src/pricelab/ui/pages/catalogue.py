@@ -6,7 +6,17 @@ import streamlit as st
 
 from pricelab.analytics.catalogue import catalogue_kpis, filter_catalogue, product_leaderboard, product_pareto
 from pricelab.modeling.backtest import BacktestResult
-from pricelab.ui.components import compact_number, pareto_chart, portfolio_scatter_chart, product_backtest_error_chart, product_leaderboard_chart
+from pricelab.ui.components import (
+    app_header,
+    compact_number,
+    dense_dataframe,
+    pareto_chart,
+    portfolio_scatter_chart,
+    product_backtest_error_chart,
+    product_leaderboard_chart,
+    section_header,
+    status_pills,
+)
 
 
 METRIC_OPTIONS = {
@@ -19,7 +29,11 @@ METRIC_OPTIONS = {
 
 
 def render_catalogue_page(df: pd.DataFrame, backtest: BacktestResult | None) -> None:
-    st.subheader("Catalogue overview")
+    app_header(
+        "Catalogue explorer",
+        "Filter the active scope, rank products, and inspect portfolio concentration before selecting a pricing action.",
+        [(f"{df['product_id'].nunique():,} products", ""), ("Dense analysis", "ok")],
+    )
     f1, f2, f3 = st.columns(3)
     categories = f1.multiselect("Category", _options(df, "category"), placeholder="All categories")
     channels = f2.multiselect("Channel", _options(df, "channel"), placeholder="All channels")
@@ -30,6 +44,7 @@ def render_catalogue_page(df: pd.DataFrame, backtest: BacktestResult | None) -> 
         st.warning("No rows match the selected filters.")
         return
 
+    section_header("Scope KPIs", "Filtered business volume and commercial mix.")
     kpis = catalogue_kpis(filtered)
     cols = st.columns(5)
     cols[0].metric("Products", f"{kpis['products']:,}")
@@ -45,26 +60,26 @@ def render_catalogue_page(df: pd.DataFrame, backtest: BacktestResult | None) -> 
     top_n = None if top_choice == "All" else int(top_choice.split()[-1])
 
     leaderboard = product_leaderboard(filtered, metric=metric, top_n=top_n)
-    st.write(f"{top_choice} products by {metric_label.lower()}")
-    st.plotly_chart(product_leaderboard_chart(leaderboard, metric=metric), use_container_width=True)
+    section_header("Leaderboard", f"{top_choice} products by {metric_label.lower()}.")
+    st.plotly_chart(product_leaderboard_chart(leaderboard, metric=metric), width="stretch")
 
-    st.write("Portfolio position")
+    section_header("Portfolio position", "Revenue scale versus margin rate for every product in scope.")
     all_products = product_leaderboard(filtered, metric="revenue", top_n=None)
-    st.plotly_chart(portfolio_scatter_chart(all_products), use_container_width=True)
+    st.plotly_chart(portfolio_scatter_chart(all_products), width="stretch")
 
-    st.write("Pareto contribution")
-    st.plotly_chart(pareto_chart(product_pareto(filtered, metric=metric, top_n=top_n), metric=metric), use_container_width=True)
+    section_header("Pareto contribution", "Concentration view for the selected ranking metric.")
+    st.plotly_chart(pareto_chart(product_pareto(filtered, metric=metric, top_n=top_n), metric=metric), width="stretch")
 
     show_table = st.toggle("Show product table", value=top_choice == "All")
     if show_table:
-        st.dataframe(product_leaderboard(filtered, metric=metric, top_n=None), use_container_width=True)
+        dense_dataframe(product_leaderboard(filtered, metric=metric, top_n=None), height=440)
 
     if backtest is None:
-        st.info("Temporal backtest is disabled.")
+        status_pills([("Temporal backtest disabled", "warn")])
     elif not backtest.valid:
         st.warning(backtest.message)
     else:
-        st.write("Temporal backtest")
+        section_header("Temporal backtest", "Model validation against a temporal baseline.")
         c1, c2, c3, c4, c5 = st.columns(5)
         c1.metric("wMAPE", f"{backtest.metrics['wmape']:.1%}")
         c2.metric("Baseline wMAPE", f"{backtest.metrics['baseline_wmape']:.1%}")
@@ -80,10 +95,10 @@ def render_catalogue_page(df: pd.DataFrame, backtest: BacktestResult | None) -> 
             fig_bt.add_trace(go.Scatter(x=trend["date"], y=trend["predicted"], mode="lines+markers", name="Model"))
             fig_bt.add_trace(go.Scatter(x=trend["date"], y=trend["baseline"], mode="lines", name="Baseline"))
             fig_bt.update_layout(height=360, margin=dict(l=10, r=10, t=20, b=10), legend=dict(orientation="h"))
-            st.plotly_chart(fig_bt, use_container_width=True)
+            st.plotly_chart(fig_bt, width="stretch")
         if not backtest.product_metrics.empty:
-            st.plotly_chart(product_backtest_error_chart(backtest.product_metrics), use_container_width=True)
-        st.dataframe(backtest.fold_metrics, use_container_width=True)
+            st.plotly_chart(product_backtest_error_chart(backtest.product_metrics), width="stretch")
+        dense_dataframe(backtest.fold_metrics, height=260)
 
 
 def _options(df: pd.DataFrame, column: str) -> list[str]:

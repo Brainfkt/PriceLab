@@ -4,8 +4,17 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import streamlit as st
 from plotly.subplots import make_subplots
 
+
+PLOTLY_TEMPLATE = "plotly_white"
+ACCENT = "#0f766e"
+ACCENT_BLUE = "#2563eb"
+BORDER = "#dbe3ef"
+SURFACE = "#f8fafc"
+TEXT = "#111827"
+MUTED = "#64748b"
 
 METRIC_LABELS = {
     "units": "Units",
@@ -17,6 +26,326 @@ METRIC_LABELS = {
     "opportunity_score": "Opportunity score",
     "reliability_score": "Reliability score",
 }
+
+
+def inject_app_css() -> None:
+    st.markdown(
+        """
+        <style>
+        :root {
+            --pl-accent: #0f766e;
+            --pl-blue: #2563eb;
+            --pl-surface: #f8fafc;
+            --pl-border: #dbe3ef;
+            --pl-text: #111827;
+            --pl-muted: #64748b;
+            --pl-red: #dc2626;
+            --pl-orange: #d97706;
+            --pl-green: #15803d;
+        }
+        .stApp {
+            background: #ffffff;
+            color: var(--pl-text);
+        }
+        .block-container {
+            padding-top: 1.2rem;
+            padding-bottom: 3rem;
+            max-width: 1480px;
+        }
+        [data-testid="stSidebar"] {
+            background: #f8fafc;
+            border-right: 1px solid var(--pl-border);
+        }
+        [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
+        [data-testid="stSidebar"] label {
+            font-size: 0.86rem;
+        }
+        [data-testid="stMetric"] {
+            background: #ffffff;
+            border: 1px solid var(--pl-border);
+            border-radius: 8px;
+            padding: 0.72rem 0.82rem;
+            min-height: 86px;
+        }
+        [data-testid="stMetricLabel"] {
+            color: var(--pl-muted);
+            font-size: 0.76rem;
+            letter-spacing: 0;
+        }
+        [data-testid="stMetricValue"] {
+            color: var(--pl-text);
+            font-size: 1.38rem;
+            font-weight: 720;
+        }
+        div[data-testid="stDataFrame"] {
+            border: 1px solid var(--pl-border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        div[data-testid="stExpander"] {
+            border-color: var(--pl-border);
+            border-radius: 8px;
+        }
+        .pl-hero {
+            border: 1px solid var(--pl-border);
+            border-radius: 10px;
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 72%, #eef6f5 100%);
+            padding: 1.0rem 1.1rem;
+            margin: 0.25rem 0 1rem;
+        }
+        .pl-title {
+            font-size: 1.42rem;
+            line-height: 1.2;
+            font-weight: 760;
+            margin: 0;
+            letter-spacing: 0;
+        }
+        .pl-subtitle {
+            color: var(--pl-muted);
+            margin: 0.25rem 0 0;
+            font-size: 0.93rem;
+            line-height: 1.45;
+        }
+        .pl-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: end;
+            gap: 1rem;
+            border-bottom: 1px solid var(--pl-border);
+            padding-bottom: 0.45rem;
+            margin: 1.15rem 0 0.7rem;
+        }
+        .pl-section h2 {
+            font-size: 1.0rem;
+            margin: 0;
+            font-weight: 720;
+            letter-spacing: 0;
+        }
+        .pl-section p {
+            color: var(--pl-muted);
+            margin: 0.18rem 0 0;
+            font-size: 0.82rem;
+        }
+        .pl-panel {
+            background: #ffffff;
+            border: 1px solid var(--pl-border);
+            border-radius: 8px;
+            padding: 0.86rem;
+            min-height: 100%;
+        }
+        .pl-pill-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.38rem;
+            margin: 0.45rem 0 0.2rem;
+        }
+        .pl-pill {
+            border: 1px solid var(--pl-border);
+            border-radius: 999px;
+            padding: 0.22rem 0.52rem;
+            font-size: 0.76rem;
+            color: var(--pl-muted);
+            background: #ffffff;
+            white-space: nowrap;
+        }
+        .pl-pill.ok { color: var(--pl-green); border-color: #bbf7d0; background: #f0fdf4; }
+        .pl-pill.warn { color: var(--pl-orange); border-color: #fed7aa; background: #fff7ed; }
+        .pl-pill.bad { color: var(--pl-red); border-color: #fecaca; background: #fef2f2; }
+        .pl-workflow {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(110px, 1fr));
+            gap: 0.45rem;
+            margin: 0.15rem 0 0.85rem;
+        }
+        .pl-step {
+            border: 1px solid var(--pl-border);
+            border-radius: 8px;
+            background: #ffffff;
+            padding: 0.55rem 0.65rem;
+        }
+        .pl-step strong {
+            display: block;
+            font-size: 0.78rem;
+            color: var(--pl-text);
+        }
+        .pl-step span {
+            color: var(--pl-muted);
+            font-size: 0.72rem;
+        }
+        .pl-step.done { border-color: #99f6e4; background: #f0fdfa; }
+        .pl-step.active { border-color: #bfdbfe; background: #eff6ff; }
+        .pl-step.blocked { border-color: #fecaca; background: #fef2f2; }
+        .pl-note {
+            color: var(--pl-muted);
+            font-size: 0.82rem;
+            line-height: 1.45;
+        }
+        .stButton>button, .stDownloadButton>button {
+            border-radius: 7px;
+            font-weight: 650;
+        }
+        @media (max-width: 860px) {
+            .block-container { padding-left: 0.7rem; padding-right: 0.7rem; }
+            .pl-workflow { grid-template-columns: 1fr; }
+            .pl-section { align-items: start; flex-direction: column; }
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def app_header(title: str, subtitle: str, pills: list[tuple[str, str]] | None = None) -> None:
+    pill_html = ""
+    if pills:
+        pill_html = "<div class='pl-pill-row'>" + "".join(
+            f"<span class='pl-pill {tone}'>{label}</span>" for label, tone in pills
+        ) + "</div>"
+    st.markdown(
+        f"""
+        <div class="pl-hero">
+            <h1 class="pl-title">{title}</h1>
+            <p class="pl-subtitle">{subtitle}</p>
+            {pill_html}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def section_header(title: str, caption: str = "", action: str = "") -> None:
+    action_html = f"<span class='pl-note'>{action}</span>" if action else ""
+    st.markdown(
+        f"""
+        <div class="pl-section">
+            <div><h2>{title}</h2><p>{caption}</p></div>
+            {action_html}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def workflow_rail(steps: list[tuple[str, str, str]]) -> None:
+    cards = []
+    for label, detail, state in steps:
+        cards.append(f"<div class='pl-step {state}'><strong>{label}</strong><span>{detail}</span></div>")
+    st.markdown("<div class='pl-workflow'>" + "".join(cards) + "</div>", unsafe_allow_html=True)
+
+
+def status_pills(items: list[tuple[str, str]]) -> None:
+    st.markdown(
+        "<div class='pl-pill-row'>" + "".join(f"<span class='pl-pill {tone}'>{label}</span>" for label, tone in items) + "</div>",
+        unsafe_allow_html=True,
+    )
+
+
+def panel_note(text: str) -> None:
+    st.markdown(f"<p class='pl-note'>{text}</p>", unsafe_allow_html=True)
+
+
+def dense_dataframe(
+    df: pd.DataFrame,
+    *,
+    height: int = 360,
+    key: str | None = None,
+    selectable: bool = False,
+    column_order: list[str] | None = None,
+):
+    if df.empty:
+        st.info("No rows to display for the current scope.")
+        return None
+    kwargs = {
+        "width": "stretch",
+        "height": height,
+        "hide_index": True,
+        "column_config": dataframe_column_config(df),
+    }
+    if column_order is not None:
+        kwargs["column_order"] = [col for col in column_order if col in df.columns]
+    if selectable:
+        return st.dataframe(
+            df,
+            key=key,
+            on_select="rerun",
+            selection_mode="single-row",
+            **kwargs,
+        )
+    return st.dataframe(df, **kwargs)
+
+
+def mapping_editor_frame(mapping: dict[str, str | None], required: set[str]) -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {
+                "field": field,
+                "source_column": source or "",
+                "required": field in required,
+            }
+            for field, source in mapping.items()
+        ]
+    )
+
+
+def dataframe_column_config(df: pd.DataFrame) -> dict[str, object]:
+    config: dict[str, object] = {}
+    money_cols = {
+        "revenue",
+        "gross_margin",
+        "avg_price",
+        "price",
+        "current_price",
+        "recommended_price",
+        "lower_price",
+        "upper_price",
+        "expected_revenue",
+        "expected_margin",
+        "predicted_revenue",
+        "predicted_margin",
+        "cost",
+    }
+    pct_cols = {
+        "margin_rate",
+        "promo_rate",
+        "stockout_rate",
+        "discount_rate",
+        "price_delta_pct",
+        "wmape",
+        "baseline_wmape",
+        "smape",
+    }
+    score_cols = {"reliability_score", "opportunity_score", "score"}
+    for column in df.columns:
+        if column in money_cols:
+            config[column] = st.column_config.NumberColumn(METRIC_LABELS.get(column, column.replace("_", " ").title()), format="$%.2f")
+        elif column in pct_cols:
+            config[column] = st.column_config.NumberColumn(METRIC_LABELS.get(column, column.replace("_", " ").title()), format="%.1f%%")
+        elif column in score_cols:
+            config[column] = st.column_config.ProgressColumn(
+                METRIC_LABELS.get(column, column.replace("_", " ").title()),
+                min_value=0,
+                max_value=100,
+                format="%.0f",
+            )
+        elif column in {"units", "units_sold", "predicted_units", "expected_units"}:
+            config[column] = st.column_config.NumberColumn(METRIC_LABELS.get(column, column.replace("_", " ").title()), format="%.0f")
+    return config
+
+
+def style_figure(fig: go.Figure, height: int | None = None) -> go.Figure:
+    fig.update_layout(
+        template=PLOTLY_TEMPLATE,
+        paper_bgcolor="#ffffff",
+        plot_bgcolor="#ffffff",
+        font=dict(color=TEXT, size=12),
+        colorway=["#0f766e", "#2563eb", "#d97706", "#dc2626", "#7c3aed", "#475569"],
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+    )
+    fig.update_xaxes(showgrid=True, gridcolor="#eef2f7", zerolinecolor="#cbd5e1")
+    fig.update_yaxes(showgrid=True, gridcolor="#eef2f7", zerolinecolor="#cbd5e1")
+    if height is not None:
+        fig.update_layout(height=height)
+    return fig
 
 
 def compact_number(value: float | int | None) -> str:

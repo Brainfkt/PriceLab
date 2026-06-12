@@ -5,11 +5,25 @@ import streamlit as st
 
 from pricelab.analytics.catalogue import catalogue_kpis, category_mix, portfolio_health, portfolio_timeseries, product_leaderboard
 from pricelab.modeling.backtest import BacktestResult
-from pricelab.ui.components import category_mix_chart, compact_number, portfolio_health_chart, portfolio_scatter_chart, portfolio_trend_chart
+from pricelab.ui.components import (
+    app_header,
+    category_mix_chart,
+    compact_number,
+    dense_dataframe,
+    portfolio_health_chart,
+    portfolio_scatter_chart,
+    portfolio_trend_chart,
+    section_header,
+    status_pills,
+)
 
 
 def render_walkthrough_page(df: pd.DataFrame, backtest: BacktestResult | None) -> None:
-    st.subheader("Portfolio brief")
+    app_header(
+        "Portfolio brief",
+        "Executive-grade overview for trend, category mix, model readiness, and reference products.",
+        [(f"{df['product_id'].nunique():,} products", ""), ("Portfolio scope", "ok")],
+    )
     kpis = catalogue_kpis(df)
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Products", f"{kpis['products']:,}")
@@ -23,28 +37,28 @@ def render_walkthrough_page(df: pd.DataFrame, backtest: BacktestResult | None) -
         b2.metric("Baseline wMAPE", f"{backtest.metrics['baseline_wmape']:.1%}")
         b3.metric("SMAPE", f"{backtest.metrics['smape']:.1%}")
     elif backtest is None:
-        st.info("Run temporal backtest in the sidebar to include model validation evidence.")
+        status_pills([("Run temporal backtest for validation evidence", "warn")])
     else:
         st.warning(backtest.message)
 
-    st.write("Portfolio trend")
-    st.plotly_chart(portfolio_trend_chart(portfolio_timeseries(df)), use_container_width=True)
+    section_header("Portfolio trend", "Revenue, margin, and units over time.")
+    st.plotly_chart(portfolio_trend_chart(portfolio_timeseries(df)), width="stretch")
 
     left, right = st.columns(2)
     with left:
-        st.write("Category mix")
-        st.plotly_chart(category_mix_chart(category_mix(df)), use_container_width=True)
+        section_header("Category mix", "Business contribution by category.")
+        st.plotly_chart(category_mix_chart(category_mix(df)), width="stretch")
     with right:
-        st.write("Portfolio health")
+        section_header("Portfolio health", "Reliability level distribution.")
         health = portfolio_health(df, backtest.product_metrics if backtest is not None and backtest.valid else None)
-        st.plotly_chart(portfolio_health_chart(health), use_container_width=True)
+        st.plotly_chart(portfolio_health_chart(health), width="stretch")
 
-    st.write("Revenue vs margin position")
+    section_header("Revenue vs margin position", "Product scale and profitability posture.")
     all_products = product_leaderboard(df, metric="revenue", top_n=None)
-    st.plotly_chart(portfolio_scatter_chart(all_products), use_container_width=True)
+    st.plotly_chart(portfolio_scatter_chart(all_products), width="stretch")
 
     top_n = st.selectbox("Reference products shown", [8, 15, 25, 50], index=0)
     leaderboard = product_leaderboard(df, metric="revenue", top_n=top_n)
     display_cols = ["product_id", "product_name", "category", "units", "revenue", "gross_margin", "avg_price"]
-    st.write("Reference products")
-    st.dataframe(leaderboard[[col for col in display_cols if col in leaderboard.columns]], use_container_width=True)
+    section_header("Reference products", "Top products by revenue in the active scope.")
+    dense_dataframe(leaderboard[[col for col in display_cols if col in leaderboard.columns]], height=360)

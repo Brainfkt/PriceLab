@@ -9,7 +9,7 @@ description = "Local pricing intelligence simulator for portfolio-grade data sci
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-  "streamlit>=1.32",
+  "streamlit>=1.58",
   "pandas>=2.0",
   "numpy>=1.24",
   "scipy>=1.10",
@@ -34,4 +34,3 @@ where = ["src"]
 pythonpath = ["src"]
 testpaths = ["tests"]
 addopts = "-q"
-

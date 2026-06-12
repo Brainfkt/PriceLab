@@ -14,6 +14,7 @@ from pricelab.analytics.promotions import promotion_depth_summary, promotion_tim
 from pricelab.reporting.html import build_html_report_with_figures
 from pricelab.reporting.markdown import build_product_markdown_report
 from pricelab.ui.components import (
+    app_header,
     price_bin_chart,
     price_units_chart,
     product_backtest_error_chart,
@@ -21,17 +22,28 @@ from pricelab.ui.components import (
     promotion_timing_chart,
     revenue_margin_chart,
     scenario_curve_chart,
+    section_header,
+    status_pills,
 )
 
 
 def render_export_page(
     df: pd.DataFrame,
-    product_id: str,
+    product_id: str | None,
     objective: str,
     product_metrics: pd.DataFrame | None,
     backtest: BacktestResult | None = None,
 ) -> None:
-    st.subheader("Export product report")
+    product = df[df["product_id"].astype(str) == str(product_id)]
+    if product.empty:
+        app_header("Export product report", "Select a product before generating a report.", [("No product", "bad")])
+        return
+    product_name = str(product["product_name"].mode().iloc[0]) if "product_name" in product.columns else str(product_id)
+    app_header(
+        "Export product report",
+        f"Generate a reproducible pricing evidence pack for {product_name}.",
+        [(f"Product {product_id}", ""), (objective.title(), "ok")],
+    )
     reliability = compute_reliability(df, product_id, product_backtest_metrics=product_metrics, objective=objective)
     recommendation = find_price_recommendation(df, product_id, objective=objective, product_backtest_metrics=product_metrics)
     elasticity = fit_loglog_elasticity(df, product_id)
@@ -52,9 +64,18 @@ def render_export_page(
         markdown_report,
         figures,
     )
-    st.download_button("Download Markdown report", markdown_report, file_name=f"pricelab_{product_id}.md", mime="text/markdown")
-    st.download_button("Download HTML report", html_report, file_name=f"pricelab_{product_id}.html", mime="text/html")
-    st.text_area("Report preview", markdown_report, height=520)
+    status_pills(
+        [
+            (f"Reliability {reliability.score:.0f}/100", "ok" if reliability.score >= 75 else "warn" if reliability.score >= 35 else "bad"),
+            (recommendation.status, "ok" if recommendation.status == "recommended" else "warn" if recommendation.status != "blocked" else "bad"),
+        ]
+    )
+    section_header("Downloads", "Markdown for versioned analysis, HTML for stakeholder review with charts.")
+    c1, c2 = st.columns(2)
+    c1.download_button("Download Markdown report", markdown_report, file_name=f"pricelab_{product_id}.md", mime="text/markdown", type="primary", width="stretch")
+    c2.download_button("Download HTML report", html_report, file_name=f"pricelab_{product_id}.html", mime="text/html", width="stretch")
+    section_header("Report preview", "Generated narrative and caveats.")
+    st.text_area("Report preview", markdown_report, height=520, label_visibility="collapsed")
 
 
 def _report_context(df: pd.DataFrame, product_id: str, objective: str) -> str:
